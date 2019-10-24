@@ -1,0 +1,227 @@
+<!-- HTML generated using hilite.me --><div style="background: #ffffff; overflow:auto;width:auto;border:solid gray;border-width:.1em .1em .1em .8em;padding:.2em .6em;"><table><tr><td><pre style="margin: 0; line-height: 125%">  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+ 12
+ 13
+ 14
+ 15
+ 16
+ 17
+ 18
+ 19
+ 20
+ 21
+ 22
+ 23
+ 24
+ 25
+ 26
+ 27
+ 28
+ 29
+ 30
+ 31
+ 32
+ 33
+ 34
+ 35
+ 36
+ 37
+ 38
+ 39
+ 40
+ 41
+ 42
+ 43
+ 44
+ 45
+ 46
+ 47
+ 48
+ 49
+ 50
+ 51
+ 52
+ 53
+ 54
+ 55
+ 56
+ 57
+ 58
+ 59
+ 60
+ 61
+ 62
+ 63
+ 64
+ 65
+ 66
+ 67
+ 68
+ 69
+ 70
+ 71
+ 72
+ 73
+ 74
+ 75
+ 76
+ 77
+ 78
+ 79
+ 80
+ 81
+ 82
+ 83
+ 84
+ 85
+ 86
+ 87
+ 88
+ 89
+ 90
+ 91
+ 92
+ 93
+ 94
+ 95
+ 96
+ 97
+ 98
+ 99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113</pre></td><td><pre style="margin: 0; line-height: 125%"><span style="color: #557799">#include &quot;cnn/nodes.h&quot;</span>
+<span style="color: #557799">#include &quot;cnn/cnn.h&quot;</span>
+<span style="color: #557799">#include &quot;cnn/training.h&quot;</span>
+<span style="color: #557799">#include &quot;cnn/gpu-ops.h&quot;</span>
+<span style="color: #557799">#include &quot;cnn/expr.h&quot;</span>
+<span style="color: #557799">#include &lt;boost/archive/text_oarchive.hpp&gt;</span>
+<span style="color: #557799">#include &lt;boost/archive/text_iarchive.hpp&gt;</span>
+<span style="color: #557799">#include &lt;stdio.h&gt;      </span><span style="color: #888888">/* printf, scanf, puts, NULL */</span><span style="color: #557799"></span>
+<span style="color: #557799">#include &lt;stdlib.h&gt;     </span><span style="color: #888888">/* srand, rand */</span><span style="color: #557799"></span>
+<span style="color: #557799">#include &lt;time.h&gt;       </span><span style="color: #888888">/* time */</span><span style="color: #557799"></span>
+
+<span style="color: #557799">#include &lt;iostream&gt;</span>
+<span style="color: #557799">#include &lt;fstream&gt;</span>
+
+<span style="color: #008800; font-weight: bold">using</span> <span style="color: #008800; font-weight: bold">namespace</span> std;
+<span style="color: #008800; font-weight: bold">using</span> <span style="color: #008800; font-weight: bold">namespace</span> cnn;
+<span style="color: #008800; font-weight: bold">using</span> <span style="color: #008800; font-weight: bold">namespace</span> cnn<span style="color: #333333">::</span>expr;
+
+<span style="color: #333399; font-weight: bold">int</span> <span style="color: #0066BB; font-weight: bold">main</span>(<span style="color: #333399; font-weight: bold">int</span> argc, <span style="color: #333399; font-weight: bold">char</span><span style="color: #333333">**</span> argv) {
+  cnn<span style="color: #333333">::</span>Initialize(argc, argv);
+
+  <span style="color: #888888">// parameters</span>
+  <span style="color: #008800; font-weight: bold">const</span> <span style="color: #333399; font-weight: bold">unsigned</span> HIDDEN_SIZE <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">8</span>;
+  <span style="color: #008800; font-weight: bold">const</span> <span style="color: #333399; font-weight: bold">unsigned</span> ITERATIONS <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">200</span>;
+  Model m;
+  <span style="color: #888888">// AdagradTrainer sgd(&amp;m);</span>
+  <span style="color: #888888">// SimpleSGDTrainer sgd(&amp;m);</span>
+  MomentumSGDTrainer sgd(<span style="color: #333333">&amp;</span>m);
+  Parameters<span style="color: #333333">*</span> p_W <span style="color: #333333">=</span> m.add_parameters({<span style="color: #0000DD; font-weight: bold">2</span>, <span style="color: #0000DD; font-weight: bold">2</span>});
+  Parameters<span style="color: #333333">*</span> p_b <span style="color: #333333">=</span> m.add_parameters({<span style="color: #0000DD; font-weight: bold">2</span>});
+
+
+  <span style="color: #008800; font-weight: bold">if</span> (argc <span style="color: #333333">==</span> <span style="color: #0000DD; font-weight: bold">2</span>) {
+    ifstream in(argv[<span style="color: #0000DD; font-weight: bold">1</span>]);
+    boost<span style="color: #333333">::</span>archive<span style="color: #333333">::</span>text_iarchive ia(in);
+    ia <span style="color: #333333">&gt;&gt;</span> m;
+  }
+
+  vector<span style="color: #333333">&lt;</span>pair<span style="color: #333333">&lt;</span>pair<span style="color: #333333">&lt;</span><span style="color: #333399; font-weight: bold">float</span>, <span style="color: #333399; font-weight: bold">float</span><span style="color: #333333">&gt;</span>, <span style="color: #333399; font-weight: bold">int</span><span style="color: #333333">&gt;&gt;</span> test_set;
+  <span style="color: #008800; font-weight: bold">for</span> (<span style="color: #333399; font-weight: bold">int</span> i <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>; i <span style="color: #333333">&lt;</span> <span style="color: #0000DD; font-weight: bold">1000</span>; i<span style="color: #333333">++</span>){
+    <span style="color: #333399; font-weight: bold">float</span> random_x1 <span style="color: #333333">=</span> (<span style="color: #333399; font-weight: bold">float</span>)(rand() <span style="color: #333333">%</span> <span style="color: #0000DD; font-weight: bold">100000</span>) <span style="color: #333333">/</span> (<span style="color: #333399; font-weight: bold">float</span>)(<span style="color: #6600EE; font-weight: bold">100000.0</span>);
+    <span style="color: #333399; font-weight: bold">float</span> random_x2 <span style="color: #333333">=</span> (<span style="color: #333399; font-weight: bold">float</span>)(rand() <span style="color: #333333">%</span> <span style="color: #0000DD; font-weight: bold">100000</span>) <span style="color: #333333">/</span> (<span style="color: #333399; font-weight: bold">float</span>)(<span style="color: #6600EE; font-weight: bold">100000.0</span>);
+    <span style="color: #333399; font-weight: bold">int</span> gold_y <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>;
+    <span style="color: #008800; font-weight: bold">if</span> (random_x1 <span style="color: #333333">&lt;</span> <span style="color: #6600EE; font-weight: bold">0.5</span>){
+      gold_y <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">1</span>;
+    }
+    test_set.push_back(make_pair(make_pair(random_x1, random_x2), gold_y));
+  }
+
+  srand (time(<span style="color: #007020">NULL</span>));
+
+  <span style="color: #888888">// train the parameters</span>
+  <span style="color: #008800; font-weight: bold">for</span> (<span style="color: #333399; font-weight: bold">unsigned</span> iter <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>; iter <span style="color: #333333">&lt;</span> ITERATIONS; <span style="color: #333333">++</span>iter) {
+    <span style="color: #333399; font-weight: bold">double</span> l <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>;
+    <span style="color: #008800; font-weight: bold">for</span> (<span style="color: #333399; font-weight: bold">unsigned</span> instance <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>; instance <span style="color: #333333">&lt;</span> <span style="color: #0000DD; font-weight: bold">10</span>; <span style="color: #333333">++</span>instance){
+      <span style="color: #333399; font-weight: bold">float</span> random_x <span style="color: #333333">=</span> (<span style="color: #333399; font-weight: bold">float</span>)(rand() <span style="color: #333333">%</span> <span style="color: #0000DD; font-weight: bold">100000</span>) <span style="color: #333333">/</span> (<span style="color: #333399; font-weight: bold">float</span>)(<span style="color: #6600EE; font-weight: bold">100000.0</span>);
+      <span style="color: #333399; font-weight: bold">int</span> gold_y <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>;
+      <span style="color: #008800; font-weight: bold">if</span> (random_x <span style="color: #333333">&lt;</span> <span style="color: #6600EE; font-weight: bold">0.5</span>){
+        gold_y <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">1</span>;
+      }
+
+      ComputationGraph cg;
+      Expression W <span style="color: #333333">=</span> parameter(cg, p_W);
+      Expression b <span style="color: #333333">=</span> parameter(cg, p_b);
+      <span style="color: #888888">// Store the value of x_1 and x_2</span>
+      vector<span style="color: #333333">&lt;</span>cnn<span style="color: #333333">::</span>real<span style="color: #333333">&gt;</span> x_values(<span style="color: #0000DD; font-weight: bold">2</span>);
+      
+      Expression x <span style="color: #333333">=</span> input(cg, {<span style="color: #0000DD; font-weight: bold">2</span>,<span style="color: #0000DD; font-weight: bold">1</span>}, <span style="color: #333333">&amp;</span>x_values);
+      x_values[<span style="color: #0000DD; font-weight: bold">0</span>] <span style="color: #333333">=</span> random_x;
+      <span style="color: #888888">// the other feature is simply a noise</span>
+      x_values[<span style="color: #0000DD; font-weight: bold">1</span>] <span style="color: #333333">=</span> (<span style="color: #333399; font-weight: bold">float</span>)(rand() <span style="color: #333333">%</span> <span style="color: #0000DD; font-weight: bold">100000</span>) <span style="color: #333333">/</span> (<span style="color: #333399; font-weight: bold">float</span>)(<span style="color: #6600EE; font-weight: bold">100000.0</span>);
+
+      Expression loss <span style="color: #333333">=</span> pickneglogsoftmax( tanh(affine_transform({b, W, x}) ), gold_y);
+      l <span style="color: #333333">+=</span> as_scalar(cg.forward());
+
+      cg.backward();
+      sgd.update(<span style="color: #6600EE; font-weight: bold">1.0</span>);
+    }
+    cerr <span style="color: #333333">&lt;&lt;</span> <span style="background-color: #fff0f0">&quot;loss this iter &quot;</span> <span style="color: #333333">&lt;&lt;</span> l <span style="color: #333333">&lt;&lt;</span> <span style="background-color: #fff0f0">&quot;</span><span style="color: #666666; font-weight: bold; background-color: #fff0f0">\t</span><span style="background-color: #fff0f0">&quot;</span>;
+    <span style="color: #888888">// test 1000 examples</span>
+    <span style="color: #333399; font-weight: bold">int</span> correct_num <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>;
+    <span style="color: #008800; font-weight: bold">for</span> (<span style="color: #008800; font-weight: bold">auto</span> test_point <span style="color: #333333">:</span> test_set){
+      ComputationGraph cg;
+      Expression W <span style="color: #333333">=</span> parameter(cg, p_W);
+      Expression b <span style="color: #333333">=</span> parameter(cg, p_b);
+      <span style="color: #888888">// Store the value of x_1 and x_2</span>
+      vector<span style="color: #333333">&lt;</span>cnn<span style="color: #333333">::</span>real<span style="color: #333333">&gt;</span> x_values(<span style="color: #0000DD; font-weight: bold">2</span>);
+      
+      Expression x <span style="color: #333333">=</span> input(cg, {<span style="color: #0000DD; font-weight: bold">2</span>,<span style="color: #0000DD; font-weight: bold">1</span>}, <span style="color: #333333">&amp;</span>x_values);
+      x_values[<span style="color: #0000DD; font-weight: bold">0</span>] <span style="color: #333333">=</span> test_point.first.first;
+      <span style="color: #888888">// the other feature is simply a noise</span>
+      x_values[<span style="color: #0000DD; font-weight: bold">1</span>] <span style="color: #333333">=</span> test_point.first.second;
+
+      Expression h <span style="color: #333333">=</span> tanh(affine_transform({b, W, x}));
+
+      <span style="color: #008800; font-weight: bold">auto</span> value <span style="color: #333333">=</span> as_vector(cg.forward());
+      <span style="color: #333399; font-weight: bold">int</span> y_pred <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">0</span>;
+      <span style="color: #008800; font-weight: bold">if</span> (value[<span style="color: #0000DD; font-weight: bold">0</span>] <span style="color: #333333">&lt;</span> value[<span style="color: #0000DD; font-weight: bold">1</span>]){
+        y_pred <span style="color: #333333">=</span> <span style="color: #0000DD; font-weight: bold">1</span>;
+      }
+      <span style="color: #008800; font-weight: bold">if</span>(y_pred <span style="color: #333333">==</span> test_point.second){
+        correct_num<span style="color: #333333">++</span>;
+      }
+      
+    }
+    cerr <span style="color: #333333">&lt;&lt;</span> <span style="background-color: #fff0f0">&quot;accuracy this iter &quot;</span> <span style="color: #333333">&lt;&lt;</span> ((<span style="color: #333399; font-weight: bold">float</span>)correct_num)<span style="color: #333333">/</span>((<span style="color: #333399; font-weight: bold">float</span>)<span style="color: #0000DD; font-weight: bold">1000</span>) <span style="color: #333333">&lt;&lt;</span> endl;
+    sgd.update_epoch();
+
+  }
+
+  boost<span style="color: #333333">::</span>archive<span style="color: #333333">::</span>text_oarchive oa(cout);
+  oa <span style="color: #333333">&lt;&lt;</span> m;
+}
+</pre></td></tr></table></div>
+
